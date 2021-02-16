@@ -1,6 +1,6 @@
 # sci-moTF
-[![codecov.io](https://codecov.io/github/ArianeMora/scitf/coverage.svg?branch=master)](https://codecov.io/github/ArianeMora/scimo?branch=master)
-[![PyPI](https://img.shields.io/pypi/v/scitf)](https://pypi.org/project/scitf/)
+[![codecov.io](https://codecov.io/github/ArianeMora/scimotf/coverage.svg?branch=main)](https://codecov.io/github/ArianeMora/scimotf?branch=main)
+[![PyPI](https://img.shields.io/pypi/v/scimotf)](https://pypi.org/project/scitf/)
 
 
 sci-moTF is a very simple package to help with finding motifs that are enriched in different clusters, that are also 
