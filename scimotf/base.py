@@ -243,4 +243,3 @@ class SciMotf:
         motif_dict_reg_grps, motif_to_genes, cluster_totals, tf_info = self.__calc_adj_matrix()
         m_df = self.__gen_output(motif_dict_reg_grps, motif_to_genes, cluster_totals, tf_info)
         return m_df
-        #self.__gen_summary(m_df)

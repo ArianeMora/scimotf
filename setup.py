@@ -21,7 +21,7 @@ setup(name='scimotf',
       long_description_content_type='text/markdown',
       author='Ariane Mora',
       author_email='ariane.n.mora@gmail.com',
-      url='https://github.com/ArianeMora/scitf',
+      url='https://github.com/ArianeMora/scimotf',
       license='GPL3',
       project_urls={
           "Bug Tracker": "https://github.com/ArianeMora/scimotf/issues",

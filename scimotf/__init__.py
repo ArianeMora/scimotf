@@ -15,10 +15,10 @@
 #                                                                             #
 ###############################################################################
 
-__title__ = 'scimo'
+__title__ = 'scimotf'
 __description__ = ''
-__url__ = 'https://github.com/ArianeMora/scimo.git'
-__version__ = '1.0.0'
+__url__ = 'https://github.com/ArianeMora/scimotf.git'
+__version__ = '0.1.0'
 __author__ = 'Ariane Mora'
 __author_email__ = 'ariane.n.mora@gmail.com'
 __license__ = 'GPL3'
