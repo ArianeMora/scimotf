@@ -1,4 +1,4 @@
-# scitf
+# sci-moTF
 [![codecov.io](https://codecov.io/github/ArianeMora/scitf/coverage.svg?branch=master)](https://codecov.io/github/ArianeMora/scimo?branch=master)
 [![PyPI](https://img.shields.io/pypi/v/scitf)](https://pypi.org/project/scitf/)
 
