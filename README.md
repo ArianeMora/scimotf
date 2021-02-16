@@ -6,7 +6,7 @@
 sci-moTF is a very simple package to help with finding motifs that are enriched in different clusters, that are also 
 expressed in your dataset and make it easier to draw inferences on which TFs may be driving the observed changes.
 
-The input to scimotf is: 1) the output of `FIMO <https://meme-suite.org/meme/doc/fimo.html?man_type=web>`_  , fimo.tsv, 2) a csv file with gene identifier (e.g. name), cluster, log2FC,
+The input to scimotf is: 1) the output of [FIMO](https://meme-suite.org/meme/doc/fimo.html?man_type=web>)  , fimo.tsv, 2) a csv file with gene identifier (e.g. name), cluster, log2FC,
  and p-value.
 
 ### Example format for fimo.tsv
@@ -37,6 +37,7 @@ cluster,motif,p-value,q-value,odds-ratio,count-genes-in-cluster,count-genes-bg,r
 4) adjust p-values
 5) summarise the identified TFs
 
-Please post questions and issues related to sci-TF on the `Issues <https://github.com/ArianeMora/scimotf/issues>`_  
+Please post questions and issues related to sci-moTF on the [Issues page](https://github.com/ArianeMora/scimotf/issues)_  
+
 section of the GitHub repository.
 
