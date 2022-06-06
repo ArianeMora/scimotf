@@ -33,7 +33,7 @@ class SciMotf:
     def __init__(self, fimo_file: str, cluster_file: str, cluster_id: str, cluster_gene_id: str,
                  cluster_p: str, cluster_logfc: str, output_dir: str, bg_cluster=None, fimo_pcol='q-value',
                  fimo_pcutoff=0.05, cluster_pcutoff=1.0, min_genes_in_cluster=3,
-                 tf_in_dataset=True, alpha=0.1, correction_method='fdr_bh'):
+                 tf_in_dataset=True, alpha=0.1, correction_method='fdr_bh', min_odds_ratio=2.0):
         self.fimo_file = fimo_file
         self.cluster_file = cluster_file
         self.fimo_df, self.cluster_df = None, None
@@ -51,6 +51,7 @@ class SciMotf:
         self.tf_in_dataset = tf_in_dataset
         self.alpha = alpha
         self.correction_method = correction_method
+        self.min_odds_ratio = min_odds_ratio
         self.u = SciUtil()
 
     def __load(self):
@@ -166,8 +167,7 @@ class SciMotf:
                 for k, v in motif_dict_reg_grps.items():
 
                     if k != 'bg' and k != "None" and k is not None:
-                        if cluster_totals[k] >= self.min_genes_in_cluster:
-
+                        if len(motif_dict_reg_grps[k][m]) >= self.min_genes_in_cluster:
                             num_in_cluster = len(motif_dict_reg_grps[k][m])
                             if not self.bg_cluster:
                                 # BG also contains that cluster so we need to subtract this out
@@ -185,18 +185,20 @@ class SciMotf:
                                 else:
                                     perc = 100 * (1.0 * num_in_cluster/(cluster_totals[k]))
                                 m_tf_info = tf_info.get(m)
-                                if m_tf_info:
-                                    m_out.write(f'{k}\t{m}\t{pvalue}\t{0}\t{oddsratio}\t{num_in_cluster}\t{num_in_bg}\t'
-                                                f'{cluster_totals[k] - num_in_cluster}\t{num_bg - num_in_bg}\t'
-                                                f'{m_tf_info["log2fc"]}\t{m_tf_info["padj"]}\t{m_tf_info["cluster"]}\t'
-                                                f'{perc}\t'
-                                                f'{",".join(motif_dict_reg_grps[k][m])}\n')
-                                else:
-                                    m_out.write(f'{k}\t{m}\t{pvalue}\t{0}\t{oddsratio}\t{num_in_cluster}\t{num_in_bg}\t'
-                                                f'{cluster_totals[k] - num_in_cluster}\t{num_bg - num_in_bg}\t'
-                                                f'{None}\t{None}\t{None}\t'
-                                                f'{perc}\t'
-                                                f'{",".join(motif_dict_reg_grps[k][m])}\n')
+                                # Filter by a minimum enrichment
+                                if oddsratio > self.min_odds_ratio:
+                                    if m_tf_info:
+                                        m_out.write(f'{k}\t{m}\t{pvalue}\t{0}\t{oddsratio}\t{num_in_cluster}\t{num_in_bg}\t'
+                                                    f'{cluster_totals[k] - num_in_cluster}\t{num_bg - num_in_bg}\t'
+                                                    f'{m_tf_info["log2fc"]}\t{m_tf_info["padj"]}\t{m_tf_info["cluster"]}\t'
+                                                    f'{perc}\t'
+                                                    f'{",".join(motif_dict_reg_grps[k][m])}\n')
+                                    else:
+                                        m_out.write(f'{k}\t{m}\t{pvalue}\t{0}\t{oddsratio}\t{num_in_cluster}\t{num_in_bg}\t'
+                                                    f'{cluster_totals[k] - num_in_cluster}\t{num_bg - num_in_bg}\t'
+                                                    f'{None}\t{None}\t{None}\t'
+                                                    f'{perc}\t'
+                                                    f'{",".join(motif_dict_reg_grps[k][m])}\n')
 
         # Re-read in the file to perform correction for FDR and to generate teh summary file
         # https://www.statsmodels.org/dev/generated/statsmodels.stats.multitest.multipletests.html

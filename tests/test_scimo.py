@@ -66,6 +66,43 @@ class TestScimotf(TestClass):
         assert m_df[m_df['motif'] == 'WT1_MOUSE.H11MO.0.C']['remainder-bg'].values[0] == 10
         assert len(m_df[m_df['cluster'] == 'a']) == 3
 
+    # def test_scimotf_SIRCLE(self):
+    #     self.setup_class()
+    #     # fimo_file: str, cluster_file: str, cluster_id: str, cluster_gene_id: str,
+    #     # cluster_p: str, cluster_logfc: str, output_dir: str, bg_cluster = None, fimo_pcol = 'q-value',
+    #     # fimo_pcutoff = 0.05, cluster_pcutoff = 1.0, min_genes_in_cluster = 3,
+    #     # tf_in_dataset = True, alpha = 0.1, correction_method = 'fdr_bh'):
+    #     """ Tests the generic function of scimo """
+    #     # fimo_file: str, cluster_file: str, cluster_id: str, cluster_gene_id: str,
+    #     #                  cluster_p: str, cluster_logfc: str, output_dir: str
+    #     scimo = SciMotf('/Users/ariane/Documents/code/sircle/data/S050_CCRCC_Clark_Cell2019/sircle/SIRCLE_A-RNA-protein_TF.csv',
+    #                     '/Users/ariane/Documents/code/sircle/data/S050_CCRCC_Clark_Cell2019/sircle/TvN_vis_df.csv', "Regulation_Grouping_2",
+    #                     "external_gene_name", "padj_protein", "logFC_protein", self.data_dir,
+    #                     fimo_pcol='protein_TF_padj',
+    #                     tf_in_dataset=False)
+    #     m_df = scimo.run()
+    #     # Now we want to assert some simple things since we have validated the output
+    #     m_df.to_csv('/Users/ariane/Documents/code/sircle/data/S050_CCRCC_Clark_Cell2019/sircle/SIRCLE_A-RNA-protein_moTF.csv')
+    #
+    # def test_scimotf2(self):
+    #     self.setup_class()
+    #     """ Tests the generic function of scimo """
+    #     # fimo_file: str, cluster_file: str, cluster_id: str, cluster_gene_id: str,
+    #     #                  cluster_p: str, cluster_logfc: str, output_dir: str
+    #     fimo_dir = '/Users/ariane/Documents/code/cptac_sircle_admin/data/S050_CCRCC_Clark_Cell2019_SIRCLE/TvN_p005_M10_R05_P02/fimo_100/'
+    #
+    #     scimo = SciMotf(os.path.join(fimo_dir, 'fimo.tsv'),
+    #                     '/Users/ariane/Documents/code/cptac_sircle_admin/data/S050_CCRCC_Clark_Cell2019_SIRCLE/TvN_p005_M10_R05_P02/RCM_TvN-GENES.csv',
+    #                     'RegulatoryLabels',
+    #                     "external_gene_name",
+    #                     "padj_rna",
+    #                     "logFC_rna",
+    #                     ".",
+    #                     cluster_pcutoff=0.1,
+    #                     tf_in_dataset=False,
+    #                     fimo_pcol="q-value")
+    #     m_df = scimo.run()
+
     def test_doro(self):
         self.setup_class()
         """ Tests the generic function of scimo """
