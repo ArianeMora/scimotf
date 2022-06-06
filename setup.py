@@ -45,7 +45,7 @@ setup(name='scimotf',
               'scimotf = scimotf.__main__:main'
           ]
       },
-      install_requires=['pandas', 'numpy', 'sciutil>=1.0.3', 'statsmodels', 'scipy'],
+      install_requires=['pandas', 'numpy', 'sciutil>=1.0.3', 'statsmodels', 'scipy', 'sciviso', 'wordcloud'],
       python_requires='>=3.6',
       data_files=[("", ["LICENSE"])]
       )

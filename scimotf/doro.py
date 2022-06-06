@@ -21,6 +21,13 @@ from collections import defaultdict
 from scipy.stats import fisher_exact
 from statsmodels.stats.multitest import multipletests
 from sciutil import SciUtil, SciException
+from sciviso import Emapplot
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from collections import defaultdict
+from wordcloud import WordCloud
+import seaborn as sns
 
 
 class Epi2GeneException(SciException):
@@ -187,3 +194,93 @@ class SciMotf_Doro:
                                         alpha=0.05, method='fdr_bh', returnsorted=False)
         odds_ratio_df['p.adj'] = padj
         return odds_ratio_df
+
+
+
+
+def plot_cluster_tf(filename, gene_ratio_min=1, padj_max=0.05, title='', fig_dir='',
+                    label_font_size=9, figsize=(3, 3), axis_font_size=6,
+                    rcm_labels=["MDS", "MDS_TMDE", "MDE", "MDE_TMDS", "TMDE", "TMDS", "TPDE", "TPDE_TMDS", "TPDS", "TPDS_TMDE"],
+                    save_fig=True):
+    """
+
+    Parameters
+    ----------
+    filename
+    gene_ratio
+    count_column
+    padj
+    overlap_column
+    id_column
+    label_column
+    gene_ratio_min
+    padj_max
+    title
+    label_font_size
+    figsize
+    axis_font_size
+    min_count
+    max_count
+    min_overlap
+    save_fig
+
+    Returns
+    -------
+
+    """
+    odds_ratio_df = pd.read_csv(filename)
+    for r in rcm_labels:
+
+        r_df = odds_ratio_df[odds_ratio_df['Regulatory Cluster label'] == r]
+        r_df = r_df[r_df['genes targetted by TF and in cluster'] > gene_ratio_min]
+        r_df = r_df[r_df['p.adj'] < padj_max]
+        title = r
+        if len(r_df) > 1:
+            eplot = Emapplot(r_df,
+                             size_column='genes targetted by TF and in cluster',
+                             color_column='p.adj',
+                             id_column='TF',
+                             label_column='TF',
+                             overlap_column='gene_names', overlap_sep=' ', title=r,
+                             config={'figsize': figsize, 'label_font_size': label_font_size,
+                                     'axis_font_size': axis_font_size})
+            eplot.build_graph()
+            plt.title(title)
+            plt.gca().set_clip_on = False
+            if save_fig:
+                plt.savefig(f'{fig_dir}TF_{title.replace(" ", "-")}_network.svg', bbox_inches='tight',
+                            transparent=True)
+            plt.show()
+
+            x, y = np.ogrid[:300, :300]
+
+            mask = (x - 150) ** 2 + (y - 150) ** 2 > 130 ** 2
+            mask = 255 * mask.astype(int)
+            wordfeqs = defaultdict(int)
+            for g in r_df['gene_names'].values:
+                for w in g.split(' '):
+                    w = w.replace(' ', '.')
+                    wordfeqs[w] += 1
+            total_words = len(wordfeqs)
+            for w in wordfeqs:
+                wordfeqs[w] = wordfeqs[w] / total_words
+            wordcloud = WordCloud(background_color="white", mask=mask, colormap='inferno',
+                                  repeat=False).generate_from_frequencies(wordfeqs)
+            if save_fig:
+                wordcloud_svg = wordcloud.to_svg(embed_font=True)
+                f = open(f'TF_{r}_WordCloud.svg', "w+")
+                f.write(wordcloud_svg)
+                f.close()
+            plt.figure()
+            plt.rcParams['svg.fonttype'] = 'none'  # Ensure text is saved as text
+            plt.rcParams['figure.figsize'] = figsize
+            font_family = 'sans-serif'
+            font = 'Arial'
+            sns.set(rc={'figure.figsize': figsize, 'font.family': font_family,
+                        'font.sans-serif': font, 'font.size': 12}, style='ticks')
+            plt.figure()
+            plt.imshow(wordcloud, interpolation="bilinear")
+            plt.axis("off")
+            if save_fig:
+                plt.savefig(f'{fig_dir}TF_{r}_WordCloud.png', bbox_inches='tight')
+            plt.show()
