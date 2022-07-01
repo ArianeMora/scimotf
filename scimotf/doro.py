@@ -17,7 +17,7 @@
 import pandas as pd
 import numpy as np
 import os
-from collections import defaultdict
+import sys
 from scipy.stats import fisher_exact
 from statsmodels.stats.multitest import multipletests
 from sciutil import SciUtil, SciException
@@ -155,10 +155,14 @@ class SciMotf_Doro:
         self.__gen_bb(rcm_clusters)
         # Keep track of the counts in each and also the genes that overlapped
         columns = ['Regulatory Cluster label', 'TF', 'p-value', 'odds-ratio',
-                   'genes targetted by TF and in cluster',
-                   'genes in cluster but not targetted by TF',
+                   'genes targeted by TF and in cluster',
+                   'genes in cluster but not targeted by TF',
                    'genes in TF but not cluster',
                    'genes not in TF or cluster',
+                   'TF padj',
+                   'TF logFC',
+                   'Mean logFC for genes targeted by TF and in cluster',
+                   'Mean logFC for genes not targeted by TF and in cluster',
                    'gene_names']
         rows = []
         tf_cell_gene_ids = defaultdict(dict)
@@ -186,16 +190,26 @@ class SciMotf_Doro:
                         odds_ratio, pval = fisher_exact(cont_table, alternative="greater")
                         genes_ids = list(set(cluster_genes) & set(tf_enriched_genes))
                         tf_cell_gene_ids[regulatory_cluster][tf] = genes_ids
+                        # Lastly calculate the average RNA change for the genes targetted by the TF and
+                        # also not tagrtted by the TF
+                        tf_targted = list(set(cluster_genes) & set(tf_enriched_genes))
+                        not_targeted = [c for c in cluster_genes if c not in tf_enriched_genes]
+                        target_mean = np.mean(self.cluster_df[self.cluster_df[self.c_gid].isin(tf_targted)][self.logfc_rna].values)
+                        non_target_mean = np.mean(self.cluster_df[self.cluster_df[self.c_gid].isin(not_targeted)][self.logfc_rna].values)
+
                         rows.append([regulatory_cluster, tf, pval, odds_ratio, in_tf_and_cluster,
-                                     cluster_not_tf, tf_not_cluster, not_tf_not_cluster, ' '.join(genes_ids)])
+                                     cluster_not_tf, tf_not_cluster, not_tf_not_cluster,
+                                     tf_df['protein_TF_padj'].values[0],
+                                     tf_df['protein_TF_logFC'].values[0],
+                                     target_mean,
+                                     non_target_mean,
+                                     ' '.join(genes_ids)])
 
         odds_ratio_df = pd.DataFrame(data=rows, columns=columns)
         reg, padj, a, b = multipletests(odds_ratio_df['p-value'].values,
                                         alpha=0.05, method='fdr_bh', returnsorted=False)
         odds_ratio_df['p.adj'] = padj
         return odds_ratio_df
-
-
 
 
 def plot_cluster_tf(filename, gene_ratio_min=1, padj_max=0.05, title='', fig_dir='',
@@ -230,14 +244,13 @@ def plot_cluster_tf(filename, gene_ratio_min=1, padj_max=0.05, title='', fig_dir
     """
     odds_ratio_df = pd.read_csv(filename)
     for r in rcm_labels:
-
         r_df = odds_ratio_df[odds_ratio_df['Regulatory Cluster label'] == r]
-        r_df = r_df[r_df['genes targetted by TF and in cluster'] > gene_ratio_min]
+        r_df = r_df[r_df['genes targeted by TF and in cluster'] > gene_ratio_min]
         r_df = r_df[r_df['p.adj'] < padj_max]
         title = r
         if len(r_df) > 1:
             eplot = Emapplot(r_df,
-                             size_column='genes targetted by TF and in cluster',
+                             size_column='genes targeted by TF and in cluster',
                              color_column='p.adj',
                              id_column='TF',
                              label_column='TF',
@@ -264,13 +277,9 @@ def plot_cluster_tf(filename, gene_ratio_min=1, padj_max=0.05, title='', fig_dir
             total_words = len(wordfeqs)
             for w in wordfeqs:
                 wordfeqs[w] = wordfeqs[w] / total_words
-            wordcloud = WordCloud(background_color="white", mask=mask, colormap='inferno',
+            wordcloud = WordCloud(background_color="white", mask=mask, colormap='viridis',
                                   repeat=False).generate_from_frequencies(wordfeqs)
-            if save_fig:
-                wordcloud_svg = wordcloud.to_svg(embed_font=True)
-                f = open(f'TF_{r}_WordCloud.svg', "w+")
-                f.write(wordcloud_svg)
-                f.close()
+
             plt.figure()
             plt.rcParams['svg.fonttype'] = 'none'  # Ensure text is saved as text
             plt.rcParams['figure.figsize'] = figsize
@@ -282,5 +291,9 @@ def plot_cluster_tf(filename, gene_ratio_min=1, padj_max=0.05, title='', fig_dir
             plt.imshow(wordcloud, interpolation="bilinear")
             plt.axis("off")
             if save_fig:
+                wordcloud_svg = wordcloud.to_svg(embed_font=True)
+                f = open(f'{fig_dir}TF_{r}_WordCloud.svg', "w+")
+                f.write(wordcloud_svg)
+                f.close()
                 plt.savefig(f'{fig_dir}TF_{r}_WordCloud.png', bbox_inches='tight')
             plt.show()

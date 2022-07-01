@@ -1,12 +1,46 @@
 # sci-moTF
-[![codecov.io](https://codecov.io/github/ArianeMora/scimotf/coverage.svg?branch=main)](https://codecov.io/github/ArianeMora/scimotf?branch=main)
 [![PyPI](https://img.shields.io/pypi/v/scimotf)](https://pypi.org/project/scitf/)
-
 
 sci-moTF is a very simple package to help with finding motifs that are enriched in different clusters, that are also 
 expressed in your dataset and make it easier to draw inferences on which TFs may be driving the observed changes.
 
-The input to scimotf is: 1) the output of [FIMO](https://meme-suite.org/meme/doc/fimo.html?man_type=web>)  , fimo.tsv, 2) a csv file with gene identifier (e.g. name), cluster, log2FC,
+## Install
+
+```
+pip install scimotf
+```
+
+There are two ways to run scimotf, 1) using DoRoTHea, 2) using FIMO.
+
+## Example using [DoRothEA](https://bioconductor.org/packages/release/data/experiment/html/dorothea.html):
+
+```
+from scimotf import SciMotf_Doro
+
+rcm_file = f'file output from the scircm package'
+tf_file = 'dorothea_hs_ABCD.csv' # File downloaded from DoRothEA
+mo = SciMotf_Doro(doro_file=tf_file, cluster_file=rcm_file, 
+                 cluster_gene_id='external_gene_name', # got to match motif
+                 padj_protein='column with your protein padj value',
+                  logfc_protein='column with the protein logFC', 
+                  padj_rna='column with the RNA padj',
+                  logfc_rna='column with the RNA logFC', 
+                  output_dir='')
+
+# Run with the letters your interested in (i.e. A, B, C, D) see doro paper for deets
+df = mo.run(['A'], rcm_clusters=["TMDE", "TMDS", "MDS", "MDS_TMDE", "MDE", "MDE_TMDS", "TPDE", "TPDE_TMDS", "TPDS", "TPDS_TMDE",])
+df.to_csv(f'scimotif_DORO_A.csv')
+```
+
+#### Plot the results
+
+```
+from scimotf import plot_cluster_tf
+plot_cluster_tf(f'scimotif_DORO_A.csv', save_fig=True, fig_dir='')
+```
+
+## Example using FIMO:
+The input to scimotf is: 1) the output of [FIMO](https://meme-suite.org/meme/doc/fimo.html?man_type=web>) , fimo.tsv, 2) a csv file with gene identifier (e.g. name), cluster, log2FC,
  and p-value.
 
 ### Example format for fimo.tsv

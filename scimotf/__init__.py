@@ -18,9 +18,10 @@
 __title__ = 'scimotf'
 __description__ = ''
 __url__ = 'https://github.com/ArianeMora/scimotf.git'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __author__ = 'Ariane Mora'
 __author_email__ = 'ariane.n.mora@gmail.com'
 __license__ = 'GPL3'
 
 from scimotf.base import SciMotf
+from scimotf.doro import SciMotf_Doro, plot_cluster_tf
