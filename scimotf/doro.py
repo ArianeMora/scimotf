@@ -28,7 +28,6 @@ import numpy as np
 from collections import defaultdict
 from wordcloud import WordCloud
 import seaborn as sns
-from tqdm import tqdm
 
 
 class Epi2GeneException(SciException):
@@ -41,10 +40,8 @@ class SciMotf_Doro:
     def __init__(self, doro_file: str, cluster_file: str, cluster_gene_id: str,
                  padj_protein: str, logfc_protein: str, padj_rna: str, logfc_rna: str,
                  output_dir='.', cluster_id='Regulation_Grouping_2', bg_cluster=None, cluster_pcutoff=1.0,
-                 min_genes_in_cluster=3, tf_in_dataset=True, alpha=0.1, correction_method='fdr_bh',
-                 min_odds_ratio=1.0, consider_direction=True):
+                 min_genes_in_cluster=3, tf_in_dataset=True, alpha=0.1, correction_method='fdr_bh', min_odds_ratio=2.0):
         self.doro_file = doro_file
-        self.consider_direction = consider_direction
         self.cluster_file = cluster_file
         self.tf_df, self.cluster_df = None, None
         self.c_id = cluster_id
@@ -67,11 +64,12 @@ class SciMotf_Doro:
 
     def __load(self, doro_level):
         """ Check that the files exist and parse. """
+        self.tf_df = pd.read_csv(self.doro_file)
         # Filter to doro level
         if doro_level is not None:
             self.tf_df = self.tf_df[self.tf_df['confidence'].isin(doro_level)]
         print(self.tf_df.head())
-
+        self.cluster_df = pd.read_csv(self.cluster_file)
         # Before we run check that they aren't doing something dumb and that their output directory exists
         if not os.path.isdir(self.output_dir):
             raise Epi2GeneException(self.u.err_p(['Your output directory was not a directory., ', self.output_dir]))
@@ -101,22 +99,16 @@ class SciMotf_Doro:
             protein_logFC_map[gene_name] = protein_logfc_values[i]
             protein_sig_map[gene_name] = protein_sig_values[i]
 
-        for tf in reg_tfs:
-            targets = set(self.tf_df[self.tf_df['tf'] == tf]['target'].values)
-            # FIrst check if we actually have a change by this TF
-            if protein_sig_map.get(tf) and protein_sig_map.get(tf) < 1.0:
-                for t in targets:
-                    if rna_logFC_map.get(t) is not None and rna_sig_map.get(t) < 1.0:
-                        # CHeck if the target is significantly changed IN the right direction
-                        mor = self.tf_df[self.tf_df['tf'] == tf]
-                        mor = mor[mor['target'] == t]['mor'].values[0]
-                        if not self.consider_direction:
-                            tfs.append(tf)
-                            tf_targets.append(t)
-                            tf_values.append(protein_logFC_map.get(tf))
-                            target_values.append(protein_logFC_map.get(t))
-                            tf_padj.append(protein_sig_map.get(tf))
-                        else:
+        if self.tf_in_dataset == True:
+            for tf in reg_tfs:
+                targets = set(self.tf_df[self.tf_df['tf'] == tf]['target'].values)
+                # FIrst check if we actually have a change by this TF
+                if protein_sig_map.get(tf) and protein_sig_map.get(tf) < 0.1:
+                    for t in targets:
+                        if rna_logFC_map.get(t) is not None and rna_sig_map.get(t) < 0.1:
+                            # CHeck if the target is significantly changed IN the right direction
+                            mor = self.tf_df[self.tf_df['tf'] == tf]
+                            mor = mor[mor['target'] == t]['mor'].values[0]
                             if mor == 1 and np.sign(rna_logFC_map.get(t)) == np.sign(protein_logFC_map.get(tf)):
                                 tfs.append(tf)
                                 tf_targets.append(t)
@@ -129,6 +121,17 @@ class SciMotf_Doro:
                                 tf_values.append(protein_logFC_map.get(tf))
                                 target_values.append(protein_logFC_map.get(t))
                                 tf_padj.append(protein_sig_map.get(tf))
+        else:
+            for tf in reg_tfs:
+                targets = set(self.tf_df[self.tf_df['tf'] == tf]['target'].values)
+                # Ignore protein change for TF
+                for t in targets:
+                    if rna_logFC_map.get(t) is not None and rna_sig_map.get(t) < 0.1:
+                        tfs.append(tf)
+                        tf_targets.append(t)
+                        tf_values.append(protein_logFC_map.get(tf))
+                        target_values.append(protein_logFC_map.get(t))
+                        tf_padj.append(protein_sig_map.get(tf))
 
         tf_val_df = pd.DataFrame()
         tf_val_df['motif_id'] = tfs
@@ -139,39 +142,29 @@ class SciMotf_Doro:
         self.tf_df = tf_val_df
 
     def __gen_bb(self, rcm_clusters):
-        self.cluster_df = pd.read_csv(self.cluster_file)
-        self.tf_df = pd.read_csv(self.doro_file)
         """ Generate the background, if they don't pass a gene list with a background, then just use all the genes. """
         if self.bg_cluster:
             self.bg_genes = self.cluster_df[self.cluster_df[self.c_id] == self.bg_cluster][self.c_gid].values
             # Check the length is non-zero
             if len(self.bg_genes) == 0:
                 msg = '\t'.join(['WARN: run: in generate background, you have no background genes?\n'
-                                 ' Please check your column ID for the cluster:', str(self.c_id),
+                                ' Please check your column ID for the cluster:', str(self.c_id),
                                  '\n Also check your BG ID:', str(self.bg_cluster)])
                 self.u.warn_p([msg])
                 raise Epi2GeneException(msg)
         else:
             # Filter to include only the clusters we're intersted in
-            tf_targets = list(set(self.tf_df['target'].values))
             if rcm_clusters is not None:
-                self.bg_genes = list(set(tf_targets) & set(
-                    self.cluster_df[self.cluster_df[self.c_id].isin(rcm_clusters)][self.c_gid].values))
+                self.bg_genes = self.cluster_df[self.cluster_df[self.c_id].isin(rcm_clusters)][self.c_gid].values
                 self.cluster_df = self.cluster_df[self.cluster_df[self.c_id].isin(rcm_clusters)]
             else:
-                # Also need to add any targets in teh tf dataset that weren't included
-                self.bg_genes = list(set(tf_targets) & set(self.cluster_df[self.c_gid].values))
-            self.tf_df = self.tf_df[self.tf_df.target.isin(self.bg_genes)]
-            self.cluster_df = self.cluster_df[self.cluster_df[self.c_gid].isin(self.bg_genes)]
-
+                self.bg_genes = self.cluster_df[self.c_gid].values
             self.u.warn_p(['WARN: no background ID set, using all genes in the supplied DF as the background.\n'
                            'Number of genes: ', len(self.bg_genes)])
 
-    def run(self, doro_level=['A'],
-            rcm_clusters=["MDS", "MDS_TMDE", "MDE", "MDE_TMDS", "TPDE", "TPDE_TMDS", "TPDS", "TPDS_TMDE", ]):
-
-        self.__gen_bb(rcm_clusters)
+    def run(self, doro_level=['A'], rcm_clusters=["MDS", "MDS_TMDE", "MDE", "MDE_TMDS", "TPDE", "TPDE_TMDS", "TPDS", "TPDS_TMDE",]):
         self.__load(doro_level)
+        self.__gen_bb(rcm_clusters)
         # Keep track of the counts in each and also the genes that overlapped
         columns = ['Regulatory Cluster label', 'TF', 'p-value', 'odds-ratio',
                    'genes targeted by TF and in cluster',
@@ -186,21 +179,20 @@ class SciMotf_Doro:
         rows = []
         tf_cell_gene_ids = defaultdict(dict)
         gene_id = 'sequence_name'
-        for regulatory_cluster in tqdm(self.cluster_df[self.c_id].unique()):
+        for regulatory_cluster in self.cluster_df[self.c_id].unique():
             r_df = self.cluster_df[self.cluster_df[self.c_id] == regulatory_cluster]
             # For each cell type, construct contingency table
-            cluster_genes = r_df['external_gene_name'].values
+            cluster_genes = r_df[self.c_gid].values
             for tf in self.tf_df['motif_id'].unique():
                 tf_df = self.tf_df[self.tf_df.motif_id == tf]
                 tf_enriched_genes = tf_df[gene_id].values
                 cont_table = np.zeros((2, 2))  # Rows=ct, not ct; Cols=Module, not Module
                 if len(tf_enriched_genes) > 0:  # Some DE genes
                     in_tf_and_cluster = len(set(cluster_genes) & set(tf_enriched_genes))
-                    cluster_not_tf = len(set(cluster_genes)) - in_tf_and_cluster
-                    tf_not_cluster = len(set(tf_enriched_genes)) - in_tf_and_cluster
+                    cluster_not_tf = len(cluster_genes) - in_tf_and_cluster
+                    tf_not_cluster = len(tf_enriched_genes) - in_tf_and_cluster
                     if in_tf_and_cluster > 2:  # Require there to be at least 3 genes overlapping
-                        not_tf_not_cluster = len(set(self.bg_genes)) - (
-                                    in_tf_and_cluster + cluster_not_tf + tf_not_cluster)
+                        not_tf_not_cluster = len(self.bg_genes) - (in_tf_and_cluster + cluster_not_tf + tf_not_cluster)
                         # Populating cont table
                         cont_table[0, 0] = in_tf_and_cluster
                         cont_table[1, 0] = cluster_not_tf
@@ -214,10 +206,8 @@ class SciMotf_Doro:
                         # also not tagrtted by the TF
                         tf_targted = list(set(cluster_genes) & set(tf_enriched_genes))
                         not_targeted = [c for c in cluster_genes if c not in tf_enriched_genes]
-                        target_mean = np.mean(
-                            self.cluster_df[self.cluster_df[self.c_gid].isin(tf_targted)][self.logfc_rna].values)
-                        non_target_mean = np.mean(
-                            self.cluster_df[self.cluster_df[self.c_gid].isin(not_targeted)][self.logfc_rna].values)
+                        target_mean = np.mean(self.cluster_df[self.cluster_df[self.c_gid].isin(tf_targted)][self.logfc_rna].values)
+                        non_target_mean = np.mean(self.cluster_df[self.cluster_df[self.c_gid].isin(not_targeted)][self.logfc_rna].values)
 
                         rows.append([regulatory_cluster, tf, pval, odds_ratio, in_tf_and_cluster,
                                      cluster_not_tf, tf_not_cluster, not_tf_not_cluster,
@@ -228,24 +218,17 @@ class SciMotf_Doro:
                                      ' '.join(genes_ids)])
 
         odds_ratio_df = pd.DataFrame(data=rows, columns=columns)
-        try:
-            reg, padj, a, b = multipletests(odds_ratio_df['p-value'].values,
-                                            alpha=0.05, method='fdr_bh', returnsorted=False)
-            odds_ratio_df['p.adj'] = padj
-        except:
-            self.u.warn_p(["Unable to perform multiple tests, please run this yourself to adjust pvalues.",
-                           "Returning unadjusted values... "])
-
+        reg, padj, a, b = multipletests(odds_ratio_df['p-value'].values,
+                                        alpha=0.05, method='fdr_bh', returnsorted=False)
+        odds_ratio_df['p.adj'] = padj
         return odds_ratio_df
 
 
 def plot_cluster_tf(filename, gene_ratio_min=1, padj_max=0.05, title='', fig_dir='',
                     label_font_size=9, figsize=(3, 3), axis_font_size=6,
-                    rcm_labels=["MDS", "MDS_TMDE", "MDE", "MDE_TMDS", "TMDE", "TMDS", "TPDE", "TPDE_TMDS", "TPDS",
-                                "TPDS_TMDE"],
+                    rcm_labels=["MDS", "MDS_TMDE", "MDE", "MDE_TMDS", "TMDE", "TMDS", "TPDE", "TPDE_TMDS", "TPDS", "TPDS_TMDE"],
                     save_fig=True):
     """
-
     Parameters
     ----------
     filename
@@ -265,16 +248,15 @@ def plot_cluster_tf(filename, gene_ratio_min=1, padj_max=0.05, title='', fig_dir
     max_count
     min_overlap
     save_fig
-
     Returns
     -------
-
     """
     odds_ratio_df = pd.read_csv(filename)
     for r in rcm_labels:
         r_df = odds_ratio_df[odds_ratio_df['Regulatory Cluster label'] == r]
         r_df = r_df[r_df['genes targeted by TF and in cluster'] > gene_ratio_min]
         r_df = r_df[r_df['p.adj'] < padj_max]
+        title = r
         if len(r_df) > 1:
             eplot = Emapplot(r_df,
                              size_column='genes targeted by TF and in cluster',
@@ -319,8 +301,8 @@ def plot_cluster_tf(filename, gene_ratio_min=1, padj_max=0.05, title='', fig_dir
             plt.axis("off")
             if save_fig:
                 wordcloud_svg = wordcloud.to_svg(embed_font=True)
-                f = open(f'{fig_dir}{title}_{r}_WordCloud.svg', "w+")
+                f = open(f'{fig_dir}TF_{r}_WordCloud.svg', "w+")
                 f.write(wordcloud_svg)
                 f.close()
-                plt.savefig(f'{fig_dir}{title}_{r}_WordCloud.png', bbox_inches='tight')
+                plt.savefig(f'{fig_dir}TF_{r}_WordCloud.png', bbox_inches='tight')
             plt.show()
